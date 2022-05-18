@@ -1,0 +1,11 @@
+#pragma once
+
+#define MSG_BUFFER_SIZE 50
+#define RECONNECTION_TIME 1000
+#define HTTP_SERVER_PORT 80
+
+#define BOILER_PIN A5
+#define TEMP_PROBE_PIN 33
+
+#define COFFEE_TEMP_CELSIUS 90
+#define AUTO_OFF_TIME_MINUTES 5
