@@ -1,72 +1,57 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <AsyncElegantOTA.h>
+#include <SPIFFS.h>
+#include "webServer/webServer.h"
 
-#include "../secret.h"
 #include "config.h"
+#include "sensor.h"
+#include "../secret.h"
 
 AsyncWebServer webServer(HTTP_SERVER_PORT);
 WiFiClient wifiClient;
 AsyncElegantOtaClass ota;
+AsyncEventSource events("/events");
 
-unsigned long lastMsg = 0;
-char msg[MSG_BUFFER_SIZE];
 bool isCoffeeMakerOn = false;
-int lastStartup = 0;
+int lastStartupMillis = 0;
+String lastStatusWarned = "off";
 
-float ohmToCelsius(int ohm) {
-  return 424.5460 - (36.3507 * log1p(ohm));
-}
+// TODO save config in eeprom
+// struct Config {
+  // String wifiSsid = "";
+  // String wifiPassword = "";
 
-int inputToOhm(int input) {
-  float Vout = (input * (float)INPUT_VOLTS) / 4095.0;
-  return (float)KNOWN_RESISTOR_OHM * (((float)INPUT_VOLTS / Vout) - 1);
-}
+//   String apSsid = DEF_AP_SSID;
+//   String apPassword = DEF_AP_PASSWORD;
 
-float readTemp(int pin) {
-  int samples [60];
+//   int coffeeTempStopCelsius = DEF_COFFEE_TEMP_STOP_CELSIUS;
+//   int coffeeTempStartCelsius = DEF_COFFEE_TEMP_START_CELSIUS;
+//   int autoOffMinutes = DEF_AUTO_OFF_TIME_MINUTES;
 
-  // Collect samples
-  for (int i = 0; i < 60; i++) {
-    samples[i] = analogRead(pin);
-  }
+//   int cortoCupDispensingSeconds = DEF_CORTO_CUP_DISPENSING_SECONDS;
+//   int normalCupDispensingSeconds = DEF_NORMAL_CUP_DISPENSING_SECONDS;
+//   int lungoCupDispensingSeconds = DEF_LUNGO_CUP_DISPENSING_SECONDS;
 
-  // Sort
-  for (int i = 0; i < 60; i++) {
-    for (int j = i + 1; j < 60; j++) {
-      if (samples[i] > samples[j]) {
-        int temp = samples[i];
-        samples[i] = samples[j];
-        samples[j] = temp;
-      }
-    }
-  }
-
-  // Trim 10% from top and bottom
-  int trimmedSamples[40];
-  for (int i = 10; i < 50; i++) {
-    trimmedSamples[i - 10] = samples[i];
-  }
-
-  // Calculate average
-  int sum = 0;
-  for (int i = 0; i < 40; i++) {
-    sum += trimmedSamples[i];
-  }
-  float meanRead = sum / 40;
-
-  return ohmToCelsius(inputToOhm(meanRead));
-}
+//   int doubleCortoCupDispensingSeconds = DEF_DOUBLE_CORTO_CUP_DISPENSING_SECONDS;
+//   int doubleNormalCupDispensingSeconds = DEF_DOUBLE_NORMAL_CUP_DISPENSING_SECONDS;
+//   int doubleLungoCupDispensingSeconds = DEF_DOUBLE_LUNGO_CUP_DISPENSING_SECONDS;
+// };
 
 void setup(void) {
-  pinMode(BOILER_PIN, OUTPUT);
-
   // Serial
   Serial.begin(115200);
-  while (!Serial)
+  while (!Serial) {
     delay(500);
+  }
 
-  // GPIO init state
+  // Initialize SPIFFS
+  if (!SPIFFS.begin(true)) {
+    Serial.println("An Error has occurred while mounting SPIFFS");
+  }
+
+  // GPIO setup
+  pinMode(BOILER_PIN, OUTPUT);
   digitalWrite(BOILER_PIN, HIGH);
 
   // Wifi
@@ -84,53 +69,65 @@ void setup(void) {
   sprintf(buf, "Connected to  %s. IP Address: %s", WIFI_SSID, WiFi.localIP().toString().c_str());
   Serial.println(buf);
 
+  // SSE Socket
+  events.onConnect([](AsyncEventSourceClient* client) {
+    if (client->lastId()) {
+      Serial.printf("client reconnected. Last message ID: %u\n", client->lastId());
+    }
+
+    client->send("socket attached", "message", millis(), 10000);
+    });
+
   // OTA
   ota.begin(&webServer);
 
-  // APIs
-  webServer.on("/api/on", HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(200, "text/plain");
-    isCoffeeMakerOn = true;
-    lastStartup = millis();
-    });
-
-  webServer.on("/api/off", HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(200, "text/plain");
-    isCoffeeMakerOn = false;
-    });
-
-  webServer.on("/api/status", HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(200, "text/plain", isCoffeeMakerOn ? "on" : "off");
-    });
-
-  webServer.on("/api/temp", HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(200, "text/plain", String(readTemp(TEMP_PROBE_PIN)).c_str());
-    });
-
-  // Static files
-  // webServer.serveStatic("/", SPIFFS, "/");
-
+  // Server start
+  routes(&webServer);
   webServer.begin();
+
 }
 
 
 void loop(void) {
+  // Wifi controller
+  if (WiFi.status() != WL_CONNECTED) {
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  }
+
+  // Coffee maker controller
   float temp = readTemp(TEMP_PROBE_PIN);
 
   if (isCoffeeMakerOn) {
-    if (temp <= (float)COFFEE_TEMP_START_CELSIUS) {
+    if (temp <= (float)DEF_COFFEE_TEMP_START_CELSIUS) {
       digitalWrite(BOILER_PIN, LOW);
+
+      if (lastStatusWarned == "off") {
+        events.send("boiler is turned on", "message", millis());
+        lastStatusWarned = "on";
+      }
     }
 
-    if (temp >= (float)COFFEE_TEMP_STOP_CELSIUS) {
+    if (temp >= (float)DEF_COFFEE_TEMP_STOP_CELSIUS) {
       digitalWrite(BOILER_PIN, HIGH);
+
+      if (lastStatusWarned == "on") {
+        events.send("boiler is turned off", "message", millis());
+        lastStatusWarned = "off";
+      }
     }
-  } else {
+  }
+  else {
     digitalWrite(BOILER_PIN, HIGH);
+
+    if (lastStatusWarned == "on") {
+      events.send("boiler is turned off", "message", millis());
+      lastStatusWarned = "off";
+    }
   }
 
-  if (isCoffeeMakerOn && millis() - lastStartup > AUTO_OFF_TIME_MINUTES * 60000) {
+  if (isCoffeeMakerOn && millis() - lastStartupMillis > DEF_AUTO_OFF_TIME_MINUTES * 60000) {
     isCoffeeMakerOn = false;
-    lastStartup = 0;
+    lastStartupMillis = 0;
+    events.send("timeout reached. coffee maker turned off", "message", millis());
   }
 }
