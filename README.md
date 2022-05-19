@@ -1,4 +1,4 @@
-# mtd-coffeemaker
+# uncomfortable-coffeemaker
 
 Unnecessarily complicated firmware for ESP32 to run my office coffee maker because we stuck a knife in it and it broke. Please do not use it.
 

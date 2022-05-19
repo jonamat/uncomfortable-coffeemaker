@@ -14,18 +14,60 @@ char msg[MSG_BUFFER_SIZE];
 bool isCoffeeMakerOn = false;
 int lastStartup = 0;
 
-float ohmToCelsius(double ohm) {
+float ohmToCelsius(int ohm) {
   return 424.5460 - (36.3507 * log1p(ohm));
 }
 
+int inputToOhm(int input) {
+  float Vout = (input * (float)INPUT_VOLTS) / 4095.0;
+  return (float)KNOWN_RESISTOR_OHM * (((float)INPUT_VOLTS / Vout) - 1);
+}
+
+float readTemp(int pin) {
+  int samples [60];
+
+  // Collect samples
+  for (int i = 0; i < 60; i++) {
+    samples[i] = analogRead(pin);
+  }
+
+  // Sort
+  for (int i = 0; i < 60; i++) {
+    for (int j = i + 1; j < 60; j++) {
+      if (samples[i] > samples[j]) {
+        int temp = samples[i];
+        samples[i] = samples[j];
+        samples[j] = temp;
+      }
+    }
+  }
+
+  // Trim 10% from top and bottom
+  int trimmedSamples[40];
+  for (int i = 10; i < 50; i++) {
+    trimmedSamples[i - 10] = samples[i];
+  }
+
+  // Calculate average
+  int sum = 0;
+  for (int i = 0; i < 40; i++) {
+    sum += trimmedSamples[i];
+  }
+  float meanRead = sum / 40;
+
+  return ohmToCelsius(inputToOhm(meanRead));
+}
+
 void setup(void) {
+  pinMode(BOILER_PIN, OUTPUT);
+
   // Serial
   Serial.begin(115200);
   while (!Serial)
     delay(500);
 
   // GPIO init state
-  digitalWrite(BOILER_PIN, LOW);
+  digitalWrite(BOILER_PIN, HIGH);
 
   // Wifi
   WiFi.mode(WIFI_STA);
@@ -39,7 +81,7 @@ void setup(void) {
     delay(500);
   }
 
-  sprintf(buf, "Connected to  %s. IP Address: ", WIFI_SSID, WiFi.localIP().toString().c_str());
+  sprintf(buf, "Connected to  %s. IP Address: %s", WIFI_SSID, WiFi.localIP().toString().c_str());
   Serial.println(buf);
 
   // OTA
@@ -62,8 +104,8 @@ void setup(void) {
     });
 
   webServer.on("/api/temp", HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(200, "text/plain", String(ohmToCelsius(analogRead(TEMP_PROBE_PIN))).c_str());
-  });
+    request->send(200, "text/plain", String(readTemp(TEMP_PROBE_PIN)).c_str());
+    });
 
   // Static files
   // webServer.serveStatic("/", SPIFFS, "/");
@@ -73,12 +115,17 @@ void setup(void) {
 
 
 void loop(void) {
-  if (isCoffeeMakerOn &&
-    ohmToCelsius(analogRead(TEMP_PROBE_PIN)) >= (float)COFFEE_TEMP_CELSIUS
-    ) {
-    digitalWrite(BOILER_PIN, LOW);
-  }
-  else {
+  float temp = readTemp(TEMP_PROBE_PIN);
+
+  if (isCoffeeMakerOn) {
+    if (temp <= (float)COFFEE_TEMP_START_CELSIUS) {
+      digitalWrite(BOILER_PIN, LOW);
+    }
+
+    if (temp >= (float)COFFEE_TEMP_STOP_CELSIUS) {
+      digitalWrite(BOILER_PIN, HIGH);
+    }
+  } else {
     digitalWrite(BOILER_PIN, HIGH);
   }
 
@@ -87,9 +134,3 @@ void loop(void) {
     lastStartup = 0;
   }
 }
-
-// void error(char* err) {
-//   while(true) {
-//     digitalWrite(BOILER_PIN, LOW);
-//   }
-// }
