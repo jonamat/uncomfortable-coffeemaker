@@ -4,3 +4,5 @@
 .vscode/launch.json
 .vscode/ipch
 /secret.h
+node_modules
+.log
