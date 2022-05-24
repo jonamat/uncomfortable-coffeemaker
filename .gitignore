@@ -6,3 +6,4 @@
 /secret.h
 node_modules
 .log
+/data
