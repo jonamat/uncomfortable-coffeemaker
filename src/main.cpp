@@ -130,4 +130,6 @@ void loop(void) {
     lastStartupMillis = 0;
     events.send("timeout reached. coffee maker turned off", "message", millis());
   }
+
+  delay(10);
 }
