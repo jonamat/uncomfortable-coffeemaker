@@ -14,7 +14,7 @@ AsyncElegantOtaClass ota;
 AsyncEventSource events("/events");
 
 bool isCoffeeMakerOn = false;
-int lastStartupMillis = 0;
+unsigned long long lastStartupMillis = 0;
 String lastStatusWarned = "off";
 
 // TODO save config in eeprom
