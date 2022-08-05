@@ -1,0 +1,10 @@
+11 lines (9 sloc)  265 Bytes
+
+* linguist-detectable=false
+src/**/* linguist-detectable=true
+
+lib/**/* linguist-generated=true
+include/**/* linguist-generated=true
+
+# Normalize line ending
+* text=auto
