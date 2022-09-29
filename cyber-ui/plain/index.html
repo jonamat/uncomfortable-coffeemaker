@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Coffeemaker</title>
+    <style>
+      html {
+        font-family: sans-serif;
+        max-width: 400px;
+        padding: 1rem 2rem;
+        margin: auto;
+        line-height: 1.75;
+        font-size: 1.25em;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      h2 {
+        margin-top: 0;
+      }
+
+      h2,
+      button {
+        font-family: inherit;
+        text-align: center;
+        margin-bottom: 1rem;
+      }
+
+      #toggle-power {
+        font-size: 1.25em;
+        border: none;
+        width: 100%;
+        padding: 1rem;
+        cursor: pointer;
+        border-radius: 0.2rem;
+      }
+
+      .bg-green {
+        background-color: #38a169;
+        color: white;
+      }
+
+      .bg-red {
+        background-color: #e53e3e;
+        color: white;
+      }
+
+      .green {
+        color: #38a169;
+      }
+
+      .red {
+        color: #e53e3e;
+      }
+
+      .center {
+        text-align: center;
+      }
+
+      table {
+        width: 100%;
+        border: none;
+        border-collapse: collapse;
+        border-spacing: 0;
+      }
+
+      table tr td:first-child {
+        text-align: left;
+      }
+
+      table tr td:last-child {
+        text-align: right;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>COFFEE MAKER</h2>
+
+    <button class="bg-green" id="toggle-power">ACTIVATE</button>
+    <div class="center">
+      <table>
+        <tr>
+          <td>Power:</td>
+          <td id="isCoffeeMakerOn">ON</td>
+        </tr>
+        <tr>
+          <td>Boiler status:</td>
+          <td id="isBoilerOn">ON</td>
+        </tr>
+        <tr>
+          <td>Boiler temperature:</td>
+          <td id="temperature">ON</td>
+        </tr>
+        <tr>
+          <td>Ready for coffe?</td>
+          <td id="isReadyForCoffee">YES</td>
+        </tr>
+      </table>
+    </div>
+
+    <script src="./bundle.js" type="text/javascript"></script>
+  </body>
+</html>

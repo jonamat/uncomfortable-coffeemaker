@@ -1,0 +1,33 @@
+{
+  "name": "cyber-ui",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && cp -R ./plain dist/",
+    "preview": "vite preview",
+    "proxy": "lcp --proxyUrl http://coffee.lan/ --port 8080"
+  },
+  "dependencies": {
+    "@arwes/animation": "^1.0.0-alpha.19",
+    "@arwes/core": "^1.0.0-alpha.19",
+    "@arwes/design": "^1.0.0-alpha.19",
+    "@arwes/sounds": "^1.0.0-alpha.19",
+    "@emotion/css": "^11.10.0",
+    "@emotion/react": "^11.10.4",
+    "animejs": "^3.2.1",
+    "howler": "^2.2.3",
+    "polished": "^4.2.2",
+    "prop-types": "^15.8.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.17",
+    "@types/react-dom": "^18.0.6",
+    "@vitejs/plugin-react": "^2.1.0",
+    "local-cors-proxy": "^1.1.0",
+    "vite": "^3.1.0"
+  }
+}
